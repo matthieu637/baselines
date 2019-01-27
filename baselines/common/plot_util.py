@@ -249,6 +249,7 @@ def plot_results(
     legend_outside=False,
     resample=0,
     smooth_step=1.0,
+    reuse=None
 ):
     '''
     Plot multiple Results objects
@@ -302,8 +303,11 @@ def plot_results(
     assert isinstance(resample, int), "0: don't resample. <integer>: that many samples"
     nrows = len(sk2r)
     ncols = 1
-    figsize = figsize or (6, 6 * nrows)
-    f, axarr = plt.subplots(nrows, ncols, sharex=False, squeeze=False, figsize=figsize)
+    if reuse==None:
+        figsize = figsize or (6, 6 * nrows)
+        f, axarr = plt.subplots(nrows, ncols, sharex=False, squeeze=False, figsize=figsize)
+    else:
+        f, axarr, _, _ = reuse
 
     groups = list(set(group_fn(result) for result in allresults))
 
@@ -312,8 +316,8 @@ def plot_results(
         resample = resample or default_samples
 
     for (isplit, sk) in enumerate(sorted(sk2r.keys())):
-        g2l = {}
-        g2c = defaultdict(int)
+        g2l = reuse[2] if reuse != None else {}
+        g2c = reuse[3] if reuse != None else defaultdict(int)
         sresults = sk2r[sk]
         gresults = defaultdict(list)
         ax = axarr[isplit][0]
@@ -372,7 +376,7 @@ def plot_results(
                 loc=2 if legend_outside else None,
                 bbox_to_anchor=(1,1) if legend_outside else None)
         ax.set_title(sk)
-    return f, axarr
+    return f, axarr, g2l, g2c
 
 def regression_analysis(df):
     xcols = list(df.columns.copy())
