@@ -22,8 +22,8 @@ def learn(network, env,
           seed=None,
           total_timesteps=None,
           nb_epochs=None, # with default settings, perform 1M steps total
-          nb_epoch_cycles=20,
-          nb_rollout_steps=100,
+          nb_epoch_cycles=20, #don't care
+          nb_rollout_steps=100, #nb of data gen between each update
           reward_scale=1.0,
           render=False,
           render_eval=False,
@@ -188,34 +188,31 @@ def learn(network, env,
                 epoch_actor_losses.append(al)
                 agent.update_target_net()
 
-            # Evaluate.
-            eval_episode_rewards = []
-            eval_qs = []
-            if eval_env is not None:
-                nenvs_eval = eval_obs.shape[0]
-                eval_episode_reward = np.zeros(nenvs_eval, dtype = np.float32)
-                sample_gen=0
-                for t_rollout in range(1000):
-                    eval_action, eval_q, _, _ = agent.step(eval_obs, apply_noise=False, compute_Q=False)
-                    eval_obs, eval_r, eval_done, eval_info = eval_env.step(max_action * eval_action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
-                    if render_eval:
-                        eval_env.render()
-                    eval_episode_reward += eval_r
+        # Evaluate.
+        eval_episode_rewards = []
+        eval_qs = []
+        if eval_env is not None and (epoch % (1000//nb_rollout_steps)) == 0:
+            nenvs_eval = eval_obs.shape[0]
+            eval_episode_reward = np.zeros(nenvs_eval, dtype = np.float32)
+            sample_gen=0
+            for t_rollout in range(1000):
+                eval_action, eval_q, _, _ = agent.step(eval_obs, apply_noise=False, compute_Q=False)
+                eval_obs, eval_r, eval_done, eval_info = eval_env.step(max_action * eval_action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
+                if render_eval:
+                    eval_env.render()
+                eval_episode_reward += eval_r
 
-                    eval_qs.append(eval_q)
-                    d=0
-                    sample_gen+=1
-                    #for d in range(len(eval_done)):
-#                    if sample_gen == 1000:
-#                        print("end of ep reached", eval_done[d]) #always print True -> bug
-                    if eval_done[d]:
-                        eval_episode_rewards.append(eval_episode_reward[d])
-                        eval_episode_rewards_history.append(eval_episode_reward[d])
-                        eval_episode_reward[d] = 0.0
-                        break
+                eval_qs.append(eval_q)
+                d=0
+                sample_gen+=1
+                if eval_done[d]:
+                    eval_episode_rewards.append(eval_episode_reward[d])
+                    eval_episode_rewards_history.append(eval_episode_reward[d])
+                    eval_episode_reward[d] = 0.0
+                    break
 
-                baseline_fixfile.write(str(t)+','+str(sample_gen)+'\n')
-                baseline_fixfile.flush()
+            baseline_fixfile.write(str(t)+','+str(sample_gen)+'\n')
+            baseline_fixfile.flush()
 
 
         if MPI is not None:
