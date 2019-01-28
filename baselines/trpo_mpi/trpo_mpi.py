@@ -103,6 +103,7 @@ def learn(*,
         max_episodes=0, max_iters=0,  # time constraint
         callback=None,
         load_path=None,
+        eval_env=None,
         **network_kwargs
         ):
     '''

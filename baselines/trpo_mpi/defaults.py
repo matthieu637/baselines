@@ -1,4 +1,4 @@
-from baselines.common.models import mlp, cnn_small
+from baselines.common.models import mlp2, cnn_small
 
 
 def atari():
@@ -17,7 +17,7 @@ def atari():
 
 def mujoco():
     return dict(
-        network = mlp(num_hidden=32, num_layers=2),
+        network = mlp2(num_hidden=64, num_layers=2),
         timesteps_per_batch=1024,
         max_kl=0.01,
         cg_iters=10,
