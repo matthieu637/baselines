@@ -121,10 +121,10 @@ def learn(network, env,
 
     start_time = time.time()
 
-    epoch_episode_rewards = []
-    epoch_episode_steps = []
-    epoch_actions = []
-    epoch_qs = []
+#    epoch_episode_rewards = []
+#    epoch_episode_steps = []
+#    epoch_actions = []
+#    epoch_qs = []
     epoch_episodes = 0
     for epoch in range(nb_epochs):
         for cycle in range(nb_epoch_cycles):
@@ -152,8 +152,8 @@ def learn(network, env,
                 episode_step += 1
 
                 # Book-keeping.
-                epoch_actions.append(action)
-                epoch_qs.append(q)
+#                epoch_actions.append(action)
+#                epoch_qs.append(q)
                 agent.store_transition(obs, action, r, new_obs, done) #the batched data will be unrolled in memory.py's append.
 
                 obs = new_obs
@@ -161,11 +161,11 @@ def learn(network, env,
                 for d in range(len(done)):
                     if done[d]:
                         # Episode done.
-                        epoch_episode_rewards.append(episode_reward[d])
-                        episode_rewards_history.append(episode_reward[d])
-                        epoch_episode_steps.append(episode_step[d])
-                        episode_reward[d] = 0.
-                        episode_step[d] = 0
+#                        epoch_episode_rewards.append(episode_reward[d])
+#                        episode_rewards_history.append(episode_reward[d])
+#                        epoch_episode_steps.append(episode_step[d])
+#                        episode_reward[d] = 0.
+#                        episode_step[d] = 0
                         epoch_episodes += 1
                         episodes += 1
                         if nenvs == 1:
@@ -174,42 +174,42 @@ def learn(network, env,
 
 
             # Train.
-            epoch_actor_losses = []
-            epoch_critic_losses = []
-            epoch_adaptive_distances = []
+#            epoch_actor_losses = []
+#            epoch_critic_losses = []
+#            epoch_adaptive_distances = []
             for t_train in range(nb_train_steps):
                 # Adapt param noise, if necessary.
                 if memory.nb_entries >= batch_size and t_train % param_noise_adaption_interval == 0:
                     distance = agent.adapt_param_noise()
-                    epoch_adaptive_distances.append(distance)
+#                    epoch_adaptive_distances.append(distance)
 
                 cl, al = agent.train()
-                epoch_critic_losses.append(cl)
-                epoch_actor_losses.append(al)
+#                epoch_critic_losses.append(cl)
+#                epoch_actor_losses.append(al)
                 agent.update_target_net()
 
         # Evaluate.
-        eval_episode_rewards = []
-        eval_qs = []
+        #eval_episode_rewards = []
+        #eval_qs = []
         if eval_env is not None and (epoch % (1000//nb_rollout_steps)) == 0:
             nenvs_eval = eval_obs.shape[0]
-            eval_episode_reward = np.zeros(nenvs_eval, dtype = np.float32)
+            #eval_episode_reward = np.zeros(nenvs_eval, dtype = np.float32)
             sample_gen=0
             for t_rollout in range(1000):
                 eval_action, eval_q, _, _ = agent.step(eval_obs, apply_noise=False, compute_Q=False)
                 eval_obs, eval_r, eval_done, eval_info = eval_env.step(max_action * eval_action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
                 if render_eval:
                     eval_env.render()
-                eval_episode_reward += eval_r
+                #eval_episode_reward += eval_r
 
-                eval_qs.append(eval_q)
+                #eval_qs.append(eval_q)
                 d=0
                 sample_gen+=1
                 if eval_done[d]:
-                    eval_episode_rewards.append(eval_episode_reward[d])
-                    eval_episode_rewards_history.append(eval_episode_reward[d])
-                    eval_episode_reward[d] = 0.0
-                    break
+                   # eval_episode_rewards.append(eval_episode_reward[d])
+                   # eval_episode_rewards_history.append(eval_episode_reward[d])
+                   # eval_episode_reward[d] = 0.0
+                   break
 
             baseline_fixfile.write(str(t)+','+str(sample_gen)+'\n')
             baseline_fixfile.flush()
@@ -223,48 +223,48 @@ def learn(network, env,
         # Log stats.
         # XXX shouldn't call np.mean on variable length lists
         duration = time.time() - start_time
-        stats = agent.get_stats()
-        combined_stats = stats.copy()
-        combined_stats['rollout/return'] = np.mean(epoch_episode_rewards)
-        combined_stats['rollout/return_history'] = np.mean(episode_rewards_history)
-        combined_stats['rollout/episode_steps'] = np.mean(epoch_episode_steps)
-        combined_stats['rollout/actions_mean'] = np.mean(epoch_actions)
-        combined_stats['rollout/Q_mean'] = np.mean(epoch_qs)
-        combined_stats['train/loss_actor'] = np.mean(epoch_actor_losses)
-        combined_stats['train/loss_critic'] = np.mean(epoch_critic_losses)
-        combined_stats['train/param_noise_distance'] = np.mean(epoch_adaptive_distances)
-        combined_stats['total/duration'] = duration
-        combined_stats['total/steps_per_second'] = float(t) / float(duration)
-        combined_stats['total/episodes'] = episodes
-        combined_stats['rollout/episodes'] = epoch_episodes
-        combined_stats['rollout/actions_std'] = np.std(epoch_actions)
-        # Evaluation statistics.
-        if eval_env is not None and False: #this part is making combined_stats_sums bugged
-            combined_stats['eval/return'] = eval_episode_rewards
-            combined_stats['eval/return_history'] = np.mean(eval_episode_rewards_history)
-            combined_stats['eval/Q'] = eval_qs
-            combined_stats['eval/episodes'] = len(eval_episode_rewards)
-        def as_scalar(x):
-            if isinstance(x, np.ndarray):
-                assert x.size == 1
-                return x[0]
-            elif np.isscalar(x):
-                return x
-            else:
-                raise ValueError('expected scalar, got %s'%x)
-
-        combined_stats_sums = np.array([ np.array(x).flatten()[0] for x in combined_stats.values()])
-        if MPI is not None:
-            combined_stats_sums = MPI.COMM_WORLD.allreduce(combined_stats_sums)
-
-        combined_stats = {k : v / mpi_size for (k,v) in zip(combined_stats.keys(), combined_stats_sums)}
-
-        # Total statistics.
-        combined_stats['total/epochs'] = epoch + 1
-        combined_stats['total/steps'] = t
-
-        for key in sorted(combined_stats.keys()):
-            logger.record_tabular(key, combined_stats[key])
+#        stats = agent.get_stats()
+#        combined_stats = stats.copy()
+#        combined_stats['rollout/return'] = np.mean(epoch_episode_rewards)
+#        combined_stats['rollout/return_history'] = np.mean(episode_rewards_history)
+#        combined_stats['rollout/episode_steps'] = np.mean(epoch_episode_steps)
+#        combined_stats['rollout/actions_mean'] = np.mean(epoch_actions)
+#        combined_stats['rollout/Q_mean'] = np.mean(epoch_qs)
+#        combined_stats['train/loss_actor'] = np.mean(epoch_actor_losses)
+#        combined_stats['train/loss_critic'] = np.mean(epoch_critic_losses)
+#        combined_stats['train/param_noise_distance'] = np.mean(epoch_adaptive_distances)
+#        combined_stats['total/duration'] = duration
+#        combined_stats['total/steps_per_second'] = float(t) / float(duration)
+#        combined_stats['total/episodes'] = episodes
+#        combined_stats['rollout/episodes'] = epoch_episodes
+#        combined_stats['rollout/actions_std'] = np.std(epoch_actions)
+#        # Evaluation statistics.
+#        if eval_env is not None and False: #this part is making combined_stats_sums bugged
+#            combined_stats['eval/return'] = eval_episode_rewards
+#            combined_stats['eval/return_history'] = np.mean(eval_episode_rewards_history)
+#            combined_stats['eval/Q'] = eval_qs
+#            combined_stats['eval/episodes'] = len(eval_episode_rewards)
+#        def as_scalar(x):
+#            if isinstance(x, np.ndarray):
+#                assert x.size == 1
+#                return x[0]
+#            elif np.isscalar(x):
+#                return x
+#            else:
+#                raise ValueError('expected scalar, got %s'%x)
+#
+#        combined_stats_sums = np.array([ np.array(x).flatten()[0] for x in combined_stats.values()])
+#        if MPI is not None:
+#            combined_stats_sums = MPI.COMM_WORLD.allreduce(combined_stats_sums)
+#
+#        combined_stats = {k : v / mpi_size for (k,v) in zip(combined_stats.keys(), combined_stats_sums)}
+#
+#        # Total statistics.
+#        combined_stats['total/epochs'] = epoch + 1
+#        combined_stats['total/steps'] = t
+#
+#        for key in sorted(combined_stats.keys()):
+#            logger.record_tabular(key, combined_stats[key])
 
         if rank == 0:
             logger.dump_tabular()
