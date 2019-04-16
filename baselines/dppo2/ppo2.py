@@ -6,6 +6,7 @@ from baselines import logger
 from collections import deque
 from baselines.common import explained_variance, set_global_seeds
 from baselines.common.policies import build_policy
+from baselines.common.tf_util import get_session
 try:
     from mpi4py import MPI
 except ImportError:
@@ -78,6 +79,8 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
     '''
 
     set_global_seeds(seed)
+    baseline_fixfile = open(logger.get_dir()+'/fix.data','w')
+    total_learning_step=0
 
     if isinstance(lr, float): lr = constfn(lr)
     else: assert callable(lr)
@@ -112,20 +115,24 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
     # Instantiate the runner object
     runner = Runner(env=env, model=model, nsteps=nsteps, gamma=gamma, lam=lam)
     if eval_env is not None:
+#         testing_act_model = policy(1, 1, get_session())
+#         testing_model = model_fn(policy=policy, ob_space=ob_space, ac_space=ac_space, nbatch_act=nenvs, nbatch_train=nbatch_train,
+#                    nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef,
+#                    max_grad_norm=max_grad_norm)
         eval_runner = Runner(env = eval_env, model = model, nsteps = nsteps, gamma = gamma, lam= lam)
 
     epinfobuf = deque(maxlen=100)
-    if eval_env is not None:
+    if eval_env is not None and False:
         eval_epinfobuf = deque(maxlen=100)
 
     # Start total timer
-    tfirststart = time.perf_counter()
+    tfirststart = time.time()
 
     nupdates = total_timesteps//nbatch
     for update in range(1, nupdates+1):
         assert nbatch % nminibatches == 0
         # Start timer
-        tstart = time.perf_counter()
+        tstart = time.time()
         frac = 1.0 - (update - 1.0) / nupdates
         # Calculate the learning rate
         lrnow = lr(frac)
@@ -133,11 +140,32 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
         cliprangenow = cliprange(frac)
         # Get minibatch
         obs, returns, masks, actions, values, neglogpacs, states, epinfos = runner.run() #pylint: disable=E0632
+        total_learning_step += nsteps
         if eval_env is not None:
-            eval_obs, eval_returns, eval_masks, eval_actions, eval_values, eval_neglogpacs, eval_states, eval_epinfos = eval_runner.run() #pylint: disable=E0632
+#            eval_obs, eval_returns, eval_masks, eval_actions, eval_values, eval_neglogpacs, eval_states, eval_epinfos = eval_runner.run_testing() #pylint: disable=E0632
+            eval_runner.run_testing() #pylint: disable=E0632
+#            eobs = np.zeros((nenvs,) + env.observation_space.shape, dtype=env.observation_space.dtype.name)
+#            eobs[:] = eval_env.reset()
+#            states_ = model.initial_state
+#            done_= [False]
+#            model.step(eobs, S=states_, M=done_)
+#            model.step(eobs, S=states_, M=done_)
+#            tactions = model.step(eobs, S=states_, M=done_)
+#            eobs, _, done_, _ = eval_env.step(tactions)
+##            for t_rollout in range(1000):
+##                tactions, values, states_, _ = model.step(eobs, S=states_, M=done_)
+##                #actions, values, states_, _ = policy.step(eobs)
+##                #actions, values, states_, _ = testing_model.step(eobs, S=states_, M=done_)
+##                #actions, values, states_, _ = testing_act_model.step(eobs, S=states_, M=done_)
+##                #actions, values, states_, _ = testing_act_model.step(eobs)
+##                eobs, _, done_, _ = eval_env.step(tactions)
+##                if done_[0]:
+##                    break
+            baseline_fixfile.write(str(total_learning_step)+'\n')
+            baseline_fixfile.flush()
 
         epinfobuf.extend(epinfos)
-        if eval_env is not None:
+        if eval_env is not None and False :
             eval_epinfobuf.extend(eval_epinfos)
 
         # Here what we're going to do is for each minibatch calculate the loss and append it.
@@ -160,6 +188,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
             envsperbatch = nenvs // nminibatches
             envinds = np.arange(nenvs)
             flatinds = np.arange(nenvs * nsteps).reshape(nenvs, nsteps)
+            envsperbatch = nbatch_train // nsteps
             for _ in range(noptepochs):
                 np.random.shuffle(envinds)
                 for start in range(0, nenvs, envsperbatch):
@@ -173,7 +202,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
         # Feedforward --> get losses --> update
         lossvals = np.mean(mblossvals, axis=0)
         # End timer
-        tnow = time.perf_counter()
+        tnow = time.time()
         # Calculate the fps (frame per second)
         fps = int(nbatch / (tnow - tstart))
         if update % log_interval == 0 or update == 1:
@@ -187,7 +216,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
             logger.logkv("explained_variance", float(ev))
             logger.logkv('eprewmean', safemean([epinfo['r'] for epinfo in epinfobuf]))
             logger.logkv('eplenmean', safemean([epinfo['l'] for epinfo in epinfobuf]))
-            if eval_env is not None:
+            if eval_env is not None and False:
                 logger.logkv('eval_eprewmean', safemean([epinfo['r'] for epinfo in eval_epinfobuf]) )
                 logger.logkv('eval_eplenmean', safemean([epinfo['l'] for epinfo in eval_epinfobuf]) )
             logger.logkv('time_elapsed', tnow - tfirststart)
@@ -201,6 +230,8 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
             savepath = osp.join(checkdir, '%.5i'%update)
             print('Saving to', savepath)
             model.save(savepath)
+
+    baseline_fixfile.close()
     return model
 # Avoid division error when calculate the mean (in our case if epinfo is empty returns np.nan, not return an error)
 def safemean(xs):
