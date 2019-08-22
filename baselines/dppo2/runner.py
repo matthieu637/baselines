@@ -76,12 +76,13 @@ class Runner(AbstractEnvRunner):
         for _ in range(1000):
             # Given observations, get action value and neglopacs
             # We already have self.obs because Runner superclass run self.obs[:] = env.reset() on init
-            deter_ac = []
-            for _ in range(15):
-                actions, values, self.states, neglogpacs = self.model.step(self.obs, S=self.states, M=self.dones)
-                deter_ac.append(actions)
-            deter_ac = np.mean(np.array(deter_ac), axis=0)
-            actions = deter_ac
+            #deter_ac = []
+            #for _ in range(15):
+            #    actions, values, self.states, neglogpacs = self.model.step(self.obs, S=self.states, M=self.dones)
+            #    deter_ac.append(actions)
+            #deter_ac = np.mean(np.array(deter_ac), axis=0)
+            #actions = deter_ac
+            actions = self.model.act_model._evaluate(self.model.act_model.pd.mode(), self.obs, S=self.states, M=self.dones)
 #            mb_obs.append(self.obs.copy())
 #            mb_actions.append(actions)
 #            mb_values.append(values)
