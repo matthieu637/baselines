@@ -5,7 +5,7 @@ import os.path as osp
 from baselines import logger
 from collections import deque
 from baselines.common import explained_variance, set_global_seeds
-from baselines.common.policies-deter import build_policy
+from baselines.common.policies_deter import build_policy
 from baselines.common.tf_util import get_session
 try:
     from mpi4py import MPI
