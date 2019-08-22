@@ -1,7 +1,7 @@
 import tensorflow as tf
 from baselines.common import tf_util
 from baselines.a2c.utils import fc
-from baselines.common.distributions import make_pdtype
+from baselines.common.distributions-deter import make_pdtype
 from baselines.common.input import observation_placeholder, encode_observation
 from baselines.common.tf_util import adjust_shape
 from baselines.common.mpi_running_mean_std import RunningMeanStd

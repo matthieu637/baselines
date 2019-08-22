@@ -5,13 +5,13 @@ import os.path as osp
 from baselines import logger
 from collections import deque
 from baselines.common import explained_variance, set_global_seeds
-from baselines.common.policies import build_policy
+from baselines.common.policies-deter import build_policy
 from baselines.common.tf_util import get_session
 try:
     from mpi4py import MPI
 except ImportError:
     MPI = None
-from baselines.ppo2.runner import Runner
+from baselines.cacppo2.runner import Runner
 
 
 def constfn(val):
@@ -103,7 +103,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
 
     # Instantiate the model object (that creates act_model and train_model)
     if model_fn is None:
-        from baselines.ppo2.model import Model
+        from baselines.cacppo2.model import Model
         model_fn = Model
 
     model = model_fn(policy=policy, ob_space=ob_space, ac_space=ac_space, nbatch_act=nenvs, nbatch_train=nbatch_train,
