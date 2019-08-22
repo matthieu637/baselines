@@ -123,7 +123,7 @@ def build_env(args):
 def build_testing_env(args): 
     ncpu = multiprocessing.cpu_count()
     if sys.platform == 'darwin': ncpu //= 2
-    nenv = args.num_env or ncpu
+    nenv = 1
     alg = args.alg
     seed = args.seed
 
@@ -136,7 +136,7 @@ def build_testing_env(args):
             env = make_env(env_id, env_type, seed=seed)
         else:
             frame_stack_size = 4
-            env = make_vec_env(env_id, env_type, nenv, seed, gamestate=args.gamestate, reward_scale=args.reward_scale)
+            env = make_vec_env(env_id, env_type, nenv, seed, gamestate=args.gamestate, reward_scale=args.reward_scale, start_index=100)
             env = VecFrameStack(env, frame_stack_size)
 
     else:
@@ -147,7 +147,7 @@ def build_testing_env(args):
        get_session(config=config)
 
        flatten_dict_observations = alg not in {'her'}
-       env = make_vec_env(env_id, env_type, args.num_env or 1, seed, start_index=1, reward_scale=args.reward_scale, flatten_dict_observations=flatten_dict_observations)
+       env = make_vec_env(env_id, env_type, 1, seed, start_index=100, reward_scale=args.reward_scale, flatten_dict_observations=flatten_dict_observations)
 
        if env_type == 'mujoco':
            env = VecNormalize(env)
