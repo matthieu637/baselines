@@ -19,6 +19,7 @@ class Runner(AbstractEnvRunner):
         # Discount rate
         self.gamma = gamma
         self.num_env = num_env
+        self.deter_mode = self.model.act_model.pd.mode()
 
     def run(self):
         # Here, we init the lists that will contain the mb of experiences
@@ -96,8 +97,6 @@ class Runner(AbstractEnvRunner):
         self.obs[:] = self.env.reset()
         if isinstance(self.env, VecFrameStack):
             max_steps = self.env.venv.specs[0].tags.get('wrapper_config.TimeLimit.max_episode_steps')
-            if max_steps > 1000:
-                max_steps=1000
         else:
             max_steps = self.env.specs[0].tags.get('wrapper_config.TimeLimit.max_episode_steps')
 
@@ -110,7 +109,7 @@ class Runner(AbstractEnvRunner):
                 nobs = np.broadcast_to(self.obs, nobs_shape)
             else:
                 nobs = self.obs
-            actions = self.model.act_model._evaluate(self.model.act_model.pd.mode(), nobs, S=self.states, M=self.dones)
+            actions = self.model.act_model._evaluate(self.deter_mode, nobs, S=self.states, M=self.dones)
             actions=[actions[0]]
             #actions, values, self.states, neglogpacs = self.model.act_model.step_deter(self.obs, S=self.states, M=self.dones)
 #            mb_obs.append(self.obs.copy())

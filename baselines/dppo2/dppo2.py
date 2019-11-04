@@ -141,7 +141,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
         # Get minibatch
         obs, returns, masks, actions, values, neglogpacs, states, epinfos = runner.run() #pylint: disable=E0632
         total_learning_step += nsteps
-        if eval_env is not None and  (MPI is None or MPI.COMM_WORLD.Get_rank() == 0) and update % 50 == 0:
+        if eval_env is not None and  (MPI is None or MPI.COMM_WORLD.Get_rank() == 0) and update % 25 == 0:
 #            eval_obs, eval_returns, eval_masks, eval_actions, eval_values, eval_neglogpacs, eval_states, eval_epinfos = eval_runner.run_testing() #pylint: disable=E0632
             eval_runner.run_testing() #pylint: disable=E0632
 #            eobs = np.zeros((nenvs,) + env.observation_space.shape, dtype=env.observation_space.dtype.name)
