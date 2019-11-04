@@ -199,7 +199,7 @@ def learn(
     # Instantiate the runner object
     runner = Runner(env, model, nsteps=nsteps, gamma=gamma)
     if eval_env is not None:
-       eval_runner = Runner(eval_env, model, nsteps=nsteps, gamma=gamma)
+       eval_runner = Runner(eval_env, model, nsteps=nsteps, gamma=gamma, num_env=nenvs)
 
     # Calculate the batch_size
     nbatch = nenvs*nsteps

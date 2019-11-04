@@ -1,6 +1,7 @@
 import numpy as np
 from baselines.a2c.utils import discount_with_dones
 from baselines.common.runners import AbstractEnvRunner
+from baselines.common.vec_env.vec_frame_stack import VecFrameStack
 
 class Runner(AbstractEnvRunner):
     """
@@ -12,11 +13,13 @@ class Runner(AbstractEnvRunner):
     run():
     - Make a mini batch of experiences
     """
-    def __init__(self, env, model, nsteps=5, gamma=0.99):
+    def __init__(self, env, model, nsteps=5, gamma=0.99, num_env=0):
         super().__init__(env=env, model=model, nsteps=nsteps)
         self.gamma = gamma
         self.batch_action_shape = [x if x is not None else -1 for x in model.train_model.action.shape.as_list()]
         self.ob_dtype = model.train_model.X.dtype.as_numpy_dtype
+        self.num_env = num_env
+        self.deter_mode = self.model.act_model.pd.mode()
 
     def run(self):
         # We initialize the lists that will contain the mb of experiences
@@ -75,11 +78,24 @@ class Runner(AbstractEnvRunner):
         # We initialize the lists that will contain the mb of experiences
         mb_obs, mb_rewards, mb_actions, mb_values, mb_dones = [],[],[],[],[]
         mb_states = self.states
-        for n in range(self.env.specs[0].tags.get('wrapper_config.TimeLimit.max_episode_steps')):
+        self.obs = self.env.reset()
+        if isinstance(self.env, VecFrameStack):
+            max_steps = self.env.venv.specs[0].tags.get('wrapper_config.TimeLimit.max_episode_steps')
+        else:
+            max_steps = self.env.specs[0].tags.get('wrapper_config.TimeLimit.max_episode_steps')
+
+        for n in range(max_steps):
             # Given observations, take action and value (V(s))
-            # We already have self.obs because Runner superclass run self.obs[:] = env.reset() on init
 #            actions, values, states, _ = self.model.step(self.obs, S=self.states, M=self.dones)
-            actions = self.model.step_model._evaluate(self.model.step_model.pd.mode(), self.obs, S=self.states, M=self.dones)
+            if self.num_env > 1:
+                nobs_shape = list(self.obs.shape)
+                nobs_shape[0] *= self.num_env
+                nobs = np.broadcast_to(self.obs, nobs_shape)
+            else:
+                nobs = self.obs
+
+            actions = self.model.step_model._evaluate(self.deter_mode, nobs, S=self.states, M=self.dones)
+            actions=[actions[0]]
 
             # Append the experiences
 #            mb_obs.append(np.copy(self.obs))
