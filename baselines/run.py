@@ -248,31 +248,39 @@ def main(args):
 
     if args.save_path is not None and rank == 0:
         save_path = osp.expanduser(args.save_path)
-        if not args.load:
-            model.save(save_path)
-        else:
-            model.load(save_path)
+        model.save(save_path)
 
     if args.play:
         logger.log("Running trained model")
         env = build_testing_env(args)
         obs = env.reset()
 
+        nobs_shape = list(obs.shape)
+        nobs_shape[0] *= args.num_env
+
         state = model.initial_state if hasattr(model, 'initial_state') else None
         dones = np.zeros((1,))
 
+        deter_mode=model.act_model.pd.mode()
         i=0
         while True:
+            obs = np.broadcast_to(obs, nobs_shape)
             if state is not None:
                 actions, _, state, _ = model.step(obs,S=state, M=dones)
             else:
-                actions, _, _, _ = model.step(obs)
+                #stoch
+                #actions, _, _, _ = model.step(obs)
+                #deter
+                actions = model.act_model._evaluate(deter_mode, obs, S=state, M=dones)
+                print(actions)
 
+            actions=[actions[0]]
             obs, reward, done, _ = env.step(actions)
             env.render()
             done = done.any() if isinstance(done, np.ndarray) else done
             i+=1
-            print(done, i, reward)
+            if done or reward != 0 or i % 10 == 0:
+                print(done, i, reward)
             if done:
                 obs = env.reset()
                 i=0
