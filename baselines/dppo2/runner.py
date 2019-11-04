@@ -1,5 +1,6 @@
 import numpy as np
 from baselines.common.runners import AbstractEnvRunner
+from baselines.common.vec_env.vec_frame_stack import VecFrameStack
 
 class Runner(AbstractEnvRunner):
     """
@@ -10,12 +11,13 @@ class Runner(AbstractEnvRunner):
     run():
     - Make a mini batch
     """
-    def __init__(self, *, env, model, nsteps, gamma, lam):
+    def __init__(self, *, env, model, nsteps, gamma, lam, num_env=0):
         super().__init__(env=env, model=model, nsteps=nsteps)
         # Lambda used in GAE (General Advantage Estimation)
         self.lam = lam
         # Discount rate
         self.gamma = gamma
+        self.num_env = num_env
 
     def run(self):
         # Here, we init the lists that will contain the mb of experiences
@@ -73,16 +75,26 @@ class Runner(AbstractEnvRunner):
         epinfos = []
         # For n in range number of steps
         #for _ in range(self.nsteps):
-        for _ in range(self.env.specs[0].tags.get('wrapper_config.TimeLimit.max_episode_steps')):
+        self.obs[:] = self.env.reset()
+        if isinstance(self.env, VecFrameStack):
+            max_steps = self.env.venv.specs[0].tags.get('wrapper_config.TimeLimit.max_episode_steps')
+            if max_steps > 1000:
+                max_steps=1000
+        else:
+            max_steps = self.env.specs[0].tags.get('wrapper_config.TimeLimit.max_episode_steps')
+
+        for _ in range(max_steps):
             # Given observations, get action value and neglopacs
             # We already have self.obs because Runner superclass run self.obs[:] = env.reset() on init
-            #deter_ac = []
-            #for _ in range(15):
-            #    actions, values, self.states, neglogpacs = self.model.step(self.obs, S=self.states, M=self.dones)
-            #    deter_ac.append(actions)
-            #deter_ac = np.mean(np.array(deter_ac), axis=0)
-            #actions = deter_ac
-            actions = self.model.act_model._evaluate(self.model.act_model.pd.mode(), self.obs, S=self.states, M=self.dones)
+            if self.num_env > 1:
+                nobs_shape = list(self.obs.shape)
+                nobs_shape[0] *= self.num_env
+                nobs = np.broadcast_to(self.obs, nobs_shape)
+            else:
+                nobs = self.obs
+            actions = self.model.act_model._evaluate(self.model.act_model.pd.mode(), nobs, S=self.states, M=self.dones)
+            #actions, _, _, _ = self.model.step(nobs, S=self.states, M=self.dones)
+            actions=[actions[0]]
 #            mb_obs.append(self.obs.copy())
 #            mb_actions.append(actions)
 #            mb_values.append(values)

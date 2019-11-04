@@ -15,6 +15,7 @@ from baselines.bench import Monitor
 from baselines.common import set_global_seeds
 from baselines.common.atari_wrappers import make_atari, wrap_deepmind
 from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
+from baselines.common.vec_env.shmem_vec_env import ShmemVecEnv
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.common import retro_wrappers
 
@@ -45,6 +46,7 @@ def make_vec_env(env_id, env_type, num_env, seed,
     set_global_seeds(seed)
     if num_env > 1:
         return SubprocVecEnv([make_thunk(i + start_index) for i in range(num_env)])
+#        return ShmemVecEnv([make_thunk(i + start_index) for i in range(num_env)])
     else:
         return DummyVecEnv([make_thunk(start_index)])
 

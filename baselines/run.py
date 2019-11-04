@@ -63,7 +63,11 @@ def train(args, extra_args):
     alg_kwargs.update(extra_args)
 
     env = build_env(args)
-    eval_env = build_testing_env(args) #want to monitor testing phase
+    if MPI is None or MPI.COMM_WORLD.Get_rank() == 0:
+        eval_env = build_testing_env(args) #want to monitor testing phase
+    else:
+        eval_env = None
+
     if args.save_video_interval != 0:
         env = VecVideoRecorder(env, osp.join(logger.Logger.CURRENT.dir, "videos"), record_video_trigger=lambda x: x % args.save_video_interval == 0, video_length=args.save_video_length)
 
@@ -123,7 +127,7 @@ def build_env(args):
 def build_testing_env(args): 
     ncpu = multiprocessing.cpu_count()
     if sys.platform == 'darwin': ncpu //= 2
-    nenv = 1
+    nenv =  1
     alg = args.alg
     seed = args.seed
 
@@ -147,7 +151,7 @@ def build_testing_env(args):
        get_session(config=config)
 
        flatten_dict_observations = alg not in {'her'}
-       env = make_vec_env(env_id, env_type, 1, seed, start_index=100, reward_scale=args.reward_scale, flatten_dict_observations=flatten_dict_observations)
+       env = make_vec_env(env_id, env_type, nenv, seed, start_index=100, reward_scale=args.reward_scale, flatten_dict_observations=flatten_dict_observations)
 
        if env_type == 'mujoco':
            env = VecNormalize(env)

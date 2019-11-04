@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.stats import truncnorm,norm
 from baselines.common.runners import AbstractEnvRunner
+from baselines.common.vec_env.vec_frame_stack import VecFrameStack
 
 class Runner(AbstractEnvRunner):
     """
@@ -11,12 +12,13 @@ class Runner(AbstractEnvRunner):
     run():
     - Make a mini batch
     """
-    def __init__(self, *, env, model, nsteps, gamma, lam):
+    def __init__(self, *, env, model, nsteps, gamma, lam, num_env=0):
         super().__init__(env=env, model=model, nsteps=nsteps)
         # Lambda used in GAE (General Advantage Estimation)
         self.lam = lam
         # Discount rate
         self.gamma = gamma
+        self.num_env = num_env
 
     def run(self):
         # Here, we init the lists that will contain the mb of experiences
@@ -24,20 +26,12 @@ class Runner(AbstractEnvRunner):
         mb_states = self.states
         epinfos = []
         # For n in range number of steps
-        for iii in range(self.nsteps):
+        for _ in range(self.nsteps):
             # Given observations, get action value and neglopacs
             # We already have self.obs because Runner superclass run self.obs[:] = env.reset() on init
 
             #original code
             actions, values, self.states, neglogpacs = self.model.step(self.obs, S=self.states, M=self.dones)
-
-#            if iii== 1:
-#                all_a=[]
-#                for i in range(10000):
-#                    actions, values, self.states, neglogpacs = self.model.step(self.obs, S=self.states, M=self.dones)
-#                    all_a.append(actions[0])
-#                all_a=np.array(all_a)
-#                print('mean ', np.mean(all_a, axis=0), 'std', np.std(all_a, axis=0), 'deter', self.model.act_model.step_deter(self.obs, S=self.states, M=self.dones)[0], 'deter2', self.model.act_model._evaluate(self.model.act_model.pd.mode(), self.obs, S=self.states, M=self.dones))
 
             #fixed exploration with trunc gauss
 #            deter_actions, values, self.states, _ = self.model.act_model.step_deter(self.obs, S=self.states, M=self.dones)
@@ -99,11 +93,25 @@ class Runner(AbstractEnvRunner):
         epinfos = []
         # For n in range number of steps
         #for _ in range(self.nsteps):
-        for _ in range(self.env.specs[0].tags.get('wrapper_config.TimeLimit.max_episode_steps')):
+        self.obs[:] = self.env.reset()
+        if isinstance(self.env, VecFrameStack):
+            max_steps = self.env.venv.specs[0].tags.get('wrapper_config.TimeLimit.max_episode_steps')
+            if max_steps > 1000:
+                max_steps=1000
+        else:
+            max_steps = self.env.specs[0].tags.get('wrapper_config.TimeLimit.max_episode_steps')
+
+        for _ in range(max_steps):
             # Given observations, get action value and neglopacs
             # We already have self.obs because Runner superclass run self.obs[:] = env.reset() on init
-            #actions, values, self.states, neglogpacs = self.model.step(self.obs, S=self.states, M=self.dones)
-            actions = self.model.act_model._evaluate(self.model.act_model.pd.mode(), self.obs, S=self.states, M=self.dones)
+            if self.num_env > 1:
+                nobs_shape = list(self.obs.shape)
+                nobs_shape[0] *= self.num_env
+                nobs = np.broadcast_to(self.obs, nobs_shape)
+            else:
+                nobs = self.obs
+            actions = self.model.act_model._evaluate(self.model.act_model.pd.mode(), nobs, S=self.states, M=self.dones)
+            actions=[actions[0]]
             #actions, values, self.states, neglogpacs = self.model.act_model.step_deter(self.obs, S=self.states, M=self.dones)
 #            mb_obs.append(self.obs.copy())
 #            mb_actions.append(actions)
