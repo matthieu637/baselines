@@ -19,7 +19,7 @@ class Runner(AbstractEnvRunner):
         self.batch_action_shape = [x if x is not None else -1 for x in model.train_model.action.shape.as_list()]
         self.ob_dtype = model.train_model.X.dtype.as_numpy_dtype
         self.num_env = num_env
-        self.deter_mode = self.model.act_model.pd.mode()
+        self.deter_mode = self.model.step_model.pd.mode()
 
     def run(self):
         # We initialize the lists that will contain the mb of experiences

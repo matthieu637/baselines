@@ -212,7 +212,7 @@ def learn(
         obs, states, rewards, masks, actions, values = runner.run()
 
         total_learning_step += nsteps
-        if update % 5 == 0 or (total_timesteps//nbatch+1) == update:
+        if update % 200 == 0 or (total_timesteps//nbatch+1) == update:
             eval_runner.run_testing()
 
             baseline_fixfile.write(str(total_learning_step)+'\n')
