@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 from scipy.stats import truncnorm,norm
 from baselines.common.runners import AbstractEnvRunner
 from baselines.common.vec_env.vec_frame_stack import VecFrameStack
@@ -27,12 +28,23 @@ class Runner(AbstractEnvRunner):
         mb_states = self.states
         epinfos = []
         # For n in range number of steps
-        for _ in range(self.nsteps):
+        for iii in range(self.nsteps):
             # Given observations, get action value and neglopacs
             # We already have self.obs because Runner superclass run self.obs[:] = env.reset() on init
 
             #original code
             actions, values, self.states, neglogpacs = self.model.step(self.obs, S=self.states, M=self.dones)
+            #useful:           
+            #print(actions, neglogpacs, self.model.act_model._evaluate(self.model.act_model.pd.flatparam(), self.obs), self.model.act_model._evaluate(self.model.act_model.pd.mean, self.obs))
+
+##            print(self.model.act_model.pi, type(self.model.act_model.pi))
+#            if iii == 0:
+#                print(self.model.act_model.sess.run(tf.nn.softmax(self.model.act_model.pi), feed_dict={'ppo2_model/Ob:0': self.obs}))
+#                print(self.model.act_model.sess.run((self.model.act_model.pi), feed_dict={'ppo2_model/Ob:0': self.obs}))
+#                print()
+#            tf.Print(self.model.act_model.pi, [self.model.act_model.pi])
+#            print(self.model.act_model.pd, type(self.model.act_model.pd))
+#            print()
 
             #fixed exploration with trunc gauss
 #            deter_actions, values, self.states, _ = self.model.act_model.step_deter(self.obs, S=self.states, M=self.dones)

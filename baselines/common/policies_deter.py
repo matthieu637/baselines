@@ -15,7 +15,7 @@ class PolicyWithValue(object):
     Encapsulates fields and methods for RL policy and value function estimation with shared parameters
     """
 
-    def __init__(self, env, observations, latent, estimate_q=False, vf_latent=None, sess=None, **tensors):
+    def __init__(self, env, observations, latent, estimate_q=False, vf_latent=None, sess=None, ent_coef=0.1, **tensors):
         """
         Parameters:
         ----------
@@ -44,7 +44,7 @@ class PolicyWithValue(object):
         latent = tf.layers.flatten(latent)
 
         # Based on the action space, will select what probability distribution type
-        self.pdtype = make_pdtype(env.action_space)
+        self.pdtype = make_pdtype(env.action_space, ent_coef)
 
         self.pd, self.pi = self.pdtype.pdfromlatent(latent, init_scale=0.01)
 
@@ -124,7 +124,7 @@ class PolicyWithValue(object):
     def load(self, load_path):
         tf_util.load_state(load_path, sess=self.sess)
 
-def build_policy(env, policy_network, value_network=None,  normalize_observations=False, estimate_q=False, **policy_kwargs):
+def build_policy(env, policy_network, value_network=None,  normalize_observations=False, estimate_q=False, ent_coef=0.1, **policy_kwargs):
     if isinstance(policy_network, str):
         network_type = policy_network
         policy_network = get_network_builder(network_type)(**policy_kwargs)
@@ -178,6 +178,7 @@ def build_policy(env, policy_network, value_network=None,  normalize_observation
             vf_latent=vf_latent,
             sess=sess,
             estimate_q=estimate_q,
+            ent_coef=ent_coef,
             **extra_tensors
         )
         return policy

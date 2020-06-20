@@ -30,6 +30,12 @@ try:
 except ImportError:
     roboschool = None
 
+try:
+    import CASCD
+except:
+    pass
+
+
 _game_envs = defaultdict(set)
 for env in gym.envs.registry.all():
     # TODO: solve this with regexes
@@ -159,6 +165,11 @@ def build_testing_env(args):
     return env
 
 def get_env_type(env_id):
+    myenv=False
+    if env_id == "DiscretMountainCarContinuous-v0" or env_id == "DiscretPendulum-v0":
+        saved_env_id=env_id
+        myenv=True
+        env_id="MountainCar-v0"
     # Re-parse the gym registry, since we could have new envs since last time.
     for env in gym.envs.registry.all():
         env_type = env._entry_point.split(':')[0].split('.')[-1]
@@ -175,6 +186,8 @@ def get_env_type(env_id):
                 break
         assert env_type is not None, 'env_id {} is not recognized in env types'.format(env_id, _game_envs.keys())
 
+    if myenv:
+        env_id=saved_env_id
     return env_type, env_id
 
 
