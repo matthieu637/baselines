@@ -6,6 +6,7 @@ from baselines import logger
 from collections import deque
 from baselines.common import explained_variance, set_global_seeds
 from baselines.common.policies_deter import build_policy
+import gym
 from baselines.common.tf_util import get_session
 try:
     from mpi4py import MPI
@@ -103,8 +104,12 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
 
     # Instantiate the model object (that creates act_model and train_model)
     if model_fn is None:
-        from baselines.cacppo2.model import Model
-        model_fn = Model
+        if isinstance(ac_space, gym.spaces.Discrete):
+            from baselines.cacppo2.model_discret import Model
+            model_fn = Model
+        else:
+            from baselines.cacppo2.model import Model
+            model_fn = Model
 
     model = model_fn(policy=policy, ob_space=ob_space, ac_space=ac_space, nbatch_act=nenvs, nbatch_train=nbatch_train,
                     nsteps=nsteps, ent_coef=0, vf_coef=vf_coef,
